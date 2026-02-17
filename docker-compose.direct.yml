@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: missioncontrol
+      POSTGRES_USER: mcuser
+      POSTGRES_PASSWORD: changeme123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  backend:
+    image: python:3.11-slim
+    working_dir: /app
+    # Download backend code from GitHub raw files instead of git clone
+    command: >
+      sh -c "pip install fastapi uvicorn sqlalchemy alembic redis python-jose passlib python-multipart pydantic pydantic-settings psycopg2-binary asyncpg &&
+             mkdir -p /app/app/routers /app/app/models /app/app/schemas /app/app/services /app/migrations &&
+             curl -sL https://raw.githubusercontent.com/adamwahla1/mission-control/main/backend/app/main.py -o /app/app/main.py &&
+             curl -sL https://raw.githubusercontent.com/adamwahla1/mission-control/main/backend/app/database.py -o /app/app/database.py &&
+             curl -sL https://raw.githubusercontent.com/adamwahla1/mission-control/main/backend/app/config.py -o /app/app/config.py &&
+             curl -sL https://raw.githubusercontent.com/adamwahla1/mission-control/main/backend/app/dependencies.py -o /app/app/dependencies.py &&
+             curl -sL https://raw.githubusercontent.com/adamwahla1/mission-control/main/backend/app/websocket.py -o /app/app/websocket.py &&
+             curl -sL https://raw.githubusercontent.com/adamwahla1/mission-control/main/backend/app/__init__.py -o /app/app/__init__.py &&
+             curl -sL https://raw.githubusercontent.com/adamwahla1/mission-control/main/backend/requirements.txt -o /app/requirements.txt &&
+             pip install -r /app/requirements.txt &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      DATABASE_URL: postgresql://mcuser:changeme123@postgres:5432/missioncontrol
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: change-this-secret-later
+      CORS_ORIGINS: "*"
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    # Create nginx config inline and download frontend files
+    command: >
+      sh -c "mkdir -p /usr/share/nginx/html/assets/styles /etc/nginx/conf.d &&
+             echo 'server {
+               listen 80;
+               root /usr/share/nginx/html;
+               location /assets/ { alias /usr/share/nginx/html/assets/; }
+               location /api/ { proxy_pass http://backend:8000/api/; }
+               location /ws { proxy_pass http://backend:8000/ws; proxy_http_version 1.1; proxy_set_header Upgrade \$$http_upgrade; proxy_set_header Connection \"upgrade\"; }
+               location / { try_files \$$uri \$$uri/ /index.html; }
+             }' > /etc/nginx/conf.d/default.conf &&
+             curl -sL https://raw.githubusercontent.com/adamwahla1/mission-control/main/frontend/dist/index.html -o /usr/share/nginx/html/index.html &&
+             curl -sL https://raw.githubusercontent.com/adamwahla1/mission-control/main/frontend/dist/assets/styles/index--Q8jyJbB.css -o /usr/share/nginx/html/assets/styles/index--Q8jyJbB.css &&
+             nginx -g 'daemon off;'"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
