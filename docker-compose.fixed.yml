@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: missioncontrol
+      POSTGRES_USER: mcuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mcuser -d missioncontrol"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  backend:
+    image: python:3.11-slim
+    working_dir: /app
+    # FIXED: Check if exists, remove if it does, then clone
+    command: >
+      sh -c "
+        if [ -d /tmp/mc ]; then rm -rf /tmp/mc; fi &&
+        apt-get update && apt-get install -y git &&
+        pip install fastapi uvicorn sqlalchemy alembic redis python-jose passlib python-multipart pydantic pydantic-settings psycopg2-binary asyncpg &&
+        git clone https://github.com/adamwahla1/mission-control.git /tmp/mc &&
+        cp -r /tmp/mc/backend/* /app/ &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000
+      "
+    environment:
+      DATABASE_URL: postgresql://mcuser:${DB_PASSWORD:-changeme123}@postgres:5432/missioncontrol
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-later}
+      CORS_ORIGINS: "*"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    # FIXED: Remove old files, clone fresh, verify files exist
+    command: >
+      sh -c "
+        if [ -d /tmp/mc ]; then rm -rf /tmp/mc; fi &&
+        apk add --no-cache git &&
+        git clone https://github.com/adamwahla1/mission-control.git /tmp/mc &&
+        mkdir -p /usr/share/nginx/html/assets/styles &&
+        if [ -d /tmp/mc/frontend/dist ]; then
+          cp -r /tmp/mc/frontend/dist/* /usr/share/nginx/html/ &&
+          cp /tmp/mc/nginx.conf /etc/nginx/conf.d/default.conf &&
+          echo 'Frontend files copied successfully';
+        else
+          echo 'ERROR: frontend/dist not found in repo' && exit 1;
+        fi &&
+        nginx -g 'daemon off;'
+      "
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
