@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: missioncontrol
+      POSTGRES_USER: mcuser
+      POSTGRES_PASSWORD: testpass123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  backend:
+    image: python:3.11-slim
+    working_dir: /app
+    command: >
+      sh -c "pip install fastapi uvicorn sqlalchemy alembic redis python-jose passlib python-multipart pydantic pydantic-settings psycopg2-binary asyncpg &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      DATABASE_URL: postgresql://mcuser:testpass123@postgres:5432/missioncontrol
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: test-secret-change-later
+      CORS_ORIGINS: "*"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
