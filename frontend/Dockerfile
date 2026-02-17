@@ -1,4 +1,6 @@
 # Mission Control Frontend - Production Build
+# This Dockerfile builds the frontend and bakes it into nginx
+
 FROM node:20-alpine AS builder
 
 # Install git
@@ -9,25 +11,28 @@ RUN git clone https://github.com/adamwahla1/mission-control.git /mc
 
 WORKDIR /mc/frontend
 
-# Install and build
+# Install dependencies and build
 RUN npm ci
 RUN npm run build
 
-# Production stage
+# Production stage - nginx with baked static files
 FROM nginx:alpine
 
-# Copy built assets
+# Install curl for healthchecks
+RUN apk add --no-cache curl
+
+# Copy built assets from builder
 COPY --from=builder /mc/frontend/dist /usr/share/nginx/html
 
-# Create nginx config
-RUN echo 'server { \
-    listen 80; \
-    root /usr/share/nginx/html; \
-    location /assets/ { alias /usr/share/nginx/html/assets/; } \
-    location /api/ { proxy_pass http://backend:8000/api/; } \
-    location /ws { proxy_pass http://backend:8000/ws; proxy_http_version 1.1; proxy_set_header Upgrade $$http_upgrade; proxy_set_header Connection "upgrade"; } \
-    location / { try_files $$uri $$uri/ /index.html; } \
-}' > /etc/nginx/conf.d/default.conf
+# Copy the bulletproof nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Verify the CSS file exists (fail build if missing)
+RUN ls -la /usr/share/nginx/html/assets/styles/ || (echo "ERROR: CSS file missing!" && exit 1)
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:80/ || exit 1
 
 EXPOSE 80
 

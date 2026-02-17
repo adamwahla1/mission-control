@@ -1,3 +1,6 @@
+# Mission Control - Production Docker Compose with Baked Frontend
+# This configuration uses a pre-built frontend image instead of cloning at runtime
+
 version: '3.8'
 
 services:
@@ -10,12 +13,22 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mcuser -d missioncontrol"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     image: python:3.11-slim
@@ -32,14 +45,17 @@ services:
       JWT_SECRET: change-this-secret-later
       CORS_ORIGINS: "*"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
+    # Build the frontend image with nginx + static files baked in
     build:
-      context: https://github.com/adamwahla1/mission-control.git#main
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "8080:80"
     depends_on:
