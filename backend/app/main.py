@@ -4,8 +4,7 @@ import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.database import engine, Base
-from app.models import *
+from app.database import engine, Base, init_models
 from app.routers import auth, agents, tasks, conversations, telegram
 from app.websocket import sio, socket_app
 from app.background import start_background_tasks
@@ -13,8 +12,10 @@ from app.background import start_background_tasks
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup - init models first to avoid circular imports
+    init_models()
     Base.metadata.create_all(bind=engine)
+    print("Database tables created")
     print("WebSocket server initialized at /ws")
     
     # Start background tasks
@@ -48,6 +49,9 @@ app.mount("/ws", socket_app)
 # Include REST API routers
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(agents.router, prefix="/api/v1")
+app.include_router(tasks.router, prefix="/api/v1")
+app.include_router(conversations.router, prefix="/api/v1")
+app.include_router(telegram.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(conversations.router, prefix="/api/v1")
 app.include_router(telegram.router, prefix="/api/v1")
