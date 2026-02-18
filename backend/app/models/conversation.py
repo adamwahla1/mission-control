@@ -29,7 +29,7 @@ class Conversation(BaseModel):
 
     # Relationships
     messages = relationship("Message", back_populates="conversation")
-    tasks = relationship("Task", back_populates="conversation")
+    tasks = relationship("Task", foreign_keys="Task.conversation_id", back_populates="conversation")
 
 
 class Message(BaseModel):

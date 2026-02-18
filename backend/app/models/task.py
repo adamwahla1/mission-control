@@ -49,4 +49,4 @@ class Task(BaseModel):
     created_by_user = relationship("User", back_populates="created_tasks")
     parent_task = relationship("Task", remote_side="Task.id", back_populates="subtasks")
     subtasks = relationship("Task", back_populates="parent_task")
-    conversation = relationship("Conversation", back_populates="tasks")
+    conversation = relationship("Conversation", foreign_keys=[conversation_id], back_populates="tasks")
