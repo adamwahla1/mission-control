@@ -1,5 +1,7 @@
 import enum
+from uuid import UUID
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, JSON, DateTime, Integer
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 
@@ -37,10 +39,10 @@ class Task(BaseModel):
     reclaim_count = Column(Integer, default=0)
 
     # Foreign Keys
-    agent_id = Column(UUID(as_uuid=True), ForeignKey("agents.id"), nullable=True)
-    created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    parent_task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=True)
-    conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=True)
+    agent_id = Column(PG_UUID(as_uuid=True), ForeignKey("agents.id"), nullable=True)
+    created_by_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    parent_task_id = Column(PG_UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=True)
+    conversation_id = Column(PG_UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=True)
 
     # Relationships
     assigned_agent = relationship("Agent", back_populates="assigned_tasks")
