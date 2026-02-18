@@ -1,5 +1,7 @@
 import enum
+from uuid import UUID
 from sqlalchemy import Column, String, Enum, ForeignKey, JSON, DateTime, Integer
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 
@@ -21,7 +23,7 @@ class MessageType(str, enum.Enum):
 class Conversation(BaseModel):
     __tablename__ = "conversations"
 
-    root_task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=True)
+    root_task_id = Column(PG_UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=True)
     status = Column(Enum(ConversationStatus), default=ConversationStatus.ACTIVE)
     message_count = Column(Integer, default=0)
 
@@ -33,12 +35,12 @@ class Conversation(BaseModel):
 class Message(BaseModel):
     __tablename__ = "messages"
 
-    conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=False)
-    sender_id = Column(UUID(as_uuid=True), ForeignKey("agents.id"), nullable=False)
-    recipient_id = Column(UUID(as_uuid=True), ForeignKey("agents.id"), nullable=True)
+    conversation_id = Column(PG_UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=False)
+    sender_id = Column(PG_UUID(as_uuid=True), ForeignKey("agents.id"), nullable=False)
+    recipient_id = Column(PG_UUID(as_uuid=True), ForeignKey("agents.id"), nullable=True)
     message_type = Column(Enum(MessageType), default=MessageType.DIRECT)
     payload = Column(JSON, nullable=False)
-    parent_id = Column(UUID(as_uuid=True), ForeignKey("messages.id"), nullable=True)
+    parent_id = Column(PG_UUID(as_uuid=True), ForeignKey("messages.id"), nullable=True)
 
     # Relationships
     conversation = relationship("Conversation", back_populates="messages")
