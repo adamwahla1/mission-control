@@ -46,5 +46,5 @@ class Message(BaseModel):
     conversation = relationship("Conversation", back_populates="messages")
     sender = relationship("Agent", foreign_keys=[sender_id])
     recipient = relationship("Agent", foreign_keys=[recipient_id])
-    parent = relationship("Message", remote_side=["Message.id"], back_populates="replies")
+    parent = relationship("Message", remote_side="Message.id", back_populates="replies")
     replies = relationship("Message", back_populates="parent")

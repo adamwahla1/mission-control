@@ -39,7 +39,7 @@ class Agent(BaseModel):
 
     # Relationships
     parent_id = Column(PG_UUID(as_uuid=True), ForeignKey("agents.id"), nullable=True)
-    parent = relationship("Agent", remote_side=["Agent.id"], back_populates="children")
+    parent = relationship("Agent", remote_side="Agent.id", back_populates="children")
     children = relationship("Agent", back_populates="parent")
     assigned_tasks = relationship("Task", back_populates="assigned_agent")
     state_transitions = relationship("AgentStateTransition", back_populates="agent")
