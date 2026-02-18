@@ -32,7 +32,7 @@ class Agent(BaseModel):
     previous_status = Column(Enum(AgentStatus), nullable=True)
     capabilities = Column(JSON, default=list)
     config = Column(JSON, default=dict)
-    metadata = Column(JSON, default=dict)
+    agent_metadata = Column("metadata", JSON, default=dict)
     version = Column(Integer, default=1)
     last_heartbeat = Column(DateTime(timezone=True))
     deleted_at = Column(DateTime(timezone=True))
